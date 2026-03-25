@@ -1,0 +1,34 @@
+[package]
+name = "exe_packer"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "pack"
+path = "src/bin/pack.rs"
+
+[[bin]]
+name = "stub"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+brotli = "7"
+md5 = "0.7"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+walkdir = "2"
+tempfile = "3"
+
+[build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev]
+opt-level = 1

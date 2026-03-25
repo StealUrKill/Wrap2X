@@ -1,0 +1,14 @@
+﻿# name: used for output exe name, SmartScreen, and version info
+name = "Application"
+
+# entry_point: the exe or bat to run after extraction
+entry_point = "run.exe"
+
+# brotli compression level (0-11, higher = smaller + slower)
+brotli_level = 11
+
+# directory containing files to pack
+input_dir = "packer_files"
+
+# output data.bin path
+output = "data.bin"
