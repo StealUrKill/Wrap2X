@@ -65,19 +65,23 @@ fn run() -> Result<(), String> {
         return Err(format!("Entry point not found: {entry_point}"));
     }
 
-    // Try the simplest possible launch
-    log("Spawning with cmd /C start ...");
+    // Pass through any args given to the stub
+    let passthrough_args: Vec<String> = std::env::args().skip(1).collect();
+    log(&format!("Args: {:?}", passthrough_args));
+
+    let mut cmd_args = vec![
+        "/C".to_string(),
+        "start".to_string(),
+        String::new(),  // title (empty)
+        "/D".to_string(),
+        tmp_base.to_string_lossy().to_string(),
+        "/WAIT".to_string(),
+        entry_path.to_string_lossy().to_string(),
+    ];
+    cmd_args.extend(passthrough_args);
 
     let status = Command::new("cmd")
-        .args([
-            "/C",
-            "start",
-            "",  // title (empty)
-            "/D",
-            &tmp_base.to_string_lossy(),
-            "/WAIT",
-            &entry_path.to_string_lossy(),
-        ])
+        .args(&cmd_args)
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Spawn failed: {e}"))?
