@@ -7,6 +7,8 @@ use std::io::Write;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::thread::sleep;
+use std::time::Duration;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -42,6 +44,25 @@ fn extract_to(dir: &Path) -> Result<String, String> {
     }
 
     Ok(entry_point)
+}
+
+fn dir_in_use(dir: &Path) -> bool {
+    let Ok(rd) = fs::read_dir(dir) else { return false };
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if dir_in_use(&path) {
+                return true;
+            }
+        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if matches!(ext.to_ascii_lowercase().as_str(), "exe" | "dll" | "sys") {
+                if fs::OpenOptions::new().write(true).open(&path).is_err() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 fn run() -> Result<(), String> {
@@ -90,7 +111,18 @@ fn run() -> Result<(), String> {
 
     log(&format!("Exit code: {:?}", status.code()));
 
-    // Cleanup
+    // Instead, poll on a timer and only clean up once the extracted files are no longer locked
+    let poll = Duration::from_secs(2);
+    let max_wait = Duration::from_secs(60 * 60 * 12);
+    let mut waited = Duration::ZERO;
+
+    sleep(poll);
+    while dir_in_use(&tmp_base) && waited < max_wait {
+        sleep(poll);
+        waited += poll;
+    }
+    log(&format!("Cleanup after waiting {}s", waited.as_secs()));
+
     let _ = fs::remove_dir_all(&tmp_base);
     log("Done.");
 
