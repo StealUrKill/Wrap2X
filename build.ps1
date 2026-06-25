@@ -2,6 +2,39 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
 
+function Initialize-CargoEnv {
+    if (Get-Command cargo -ErrorAction SilentlyContinue) { return }
+    foreach ($var in 'CARGO_HOME', 'RUSTUP_HOME') {
+        foreach ($scope in 'Machine', 'User') {
+            $val = [Environment]::GetEnvironmentVariable($var, $scope)
+            if ($val) { Set-Item -Path "Env:$var" -Value $val }
+        }
+    }
+    $machPath = [Environment]::GetEnvironmentVariable('PATH', 'Machine')
+    $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $env:PATH = (@($env:PATH, $machPath, $userPath) -join ';')
+
+    if (Get-Command cargo -ErrorAction SilentlyContinue) { return }
+
+    $candidates = @()
+    if ($env:CARGO_HOME) { $candidates += (Join-Path $env:CARGO_HOME 'bin') }
+    $candidates += (Join-Path $env:USERPROFILE '.cargo\bin')
+    foreach ($c in $candidates) {
+        if (Test-Path (Join-Path $c 'cargo.exe')) { $env:PATH = "$c;$env:PATH"; return }
+    }
+}
+
+Initialize-CargoEnv
+
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "  ERROR: 'cargo' was not found." -ForegroundColor Red
+    Write-Host "  Make sure Rust is installed and the PATH is updated." -ForegroundColor Red
+    Write-Host "  Press any key..." -ForegroundColor DarkGray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    exit 1
+}
+
 $ConfigFile = "packer.toml"
 
 $script:BuildTypes  = @("Full Build", "Pack Only", "Compile Only")
